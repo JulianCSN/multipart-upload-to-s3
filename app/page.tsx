@@ -1,113 +1,159 @@
+"use client"
+
+import { useState } from 'react';
 import Image from "next/image";
+import { S3Client } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
+import UploadModal from '@/components/UploadModal';
+
+// S3Client: Configura el cliente de AWS S3 con las credenciales y la región necesarias para conectarse al bucket S3.
+const s3Client = new S3Client({
+  region: process.env.NEXT_PUBLIC_AWS_REGION!, 
+  credentials: {
+    accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY!,
+  },
+});
 
 export default function Home() {
+// useState: Hooks de React para manejar el estado de la aplicación, como el archivo seleccionado, el progreso de carga, el estado de carga, la visibilidad del modal y los mensajes de error.
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(false);
+
+  // handleFileChange: Función que se ejecuta cuando se selecciona un archivo. Actualiza el estado file con el archivo seleccionado y resetea cualquier mensaje de error previo.
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setFile(event.target.files[0]);
+    }
+    setErrorMessage(false);
+  };
+
+  // handleRemoveFile: Función que resetea el estado del archivo, el progreso y los mensajes de error, permitiendo al usuario eliminar el archivo seleccionado.
+  const handleRemoveFile = () => {
+    setFile(null);
+    setProgress(0);
+    setErrorMessage(false);
+  };
+
+  // handleUpload: Función asíncrona, sube el archivo a S3 usando el cliente configurado. Maneja el progreso de la carga y actualiza el estado del progreso y el estado de carga. Si la carga es exitosa, muestra un modal; si hay un error, muestra un mensaje de error.
+  const handleUpload = async () => {
+    if (!file) return;
+
+    setUploading(true);
+    setErrorMessage(false);
+    try {
+      const upload = new Upload({
+        client: s3Client,
+        params: {
+          Bucket: process.env.NEXT_PUBLIC_AWS_BUCKET_NAME!,
+          Key: file.name,
+          Body: file,
+        },
+        leavePartsOnError: false, // Opcional: elimina las partes cargadas si hay un error
+        partSize: 5 * 1024 * 1024, // Opcional: tamaño de la parte (por defecto es 5 MB)
+      });
+
+      upload.on('httpUploadProgress', (progress) => {
+        const loaded = progress.loaded ?? 0;
+        const total = progress.total ?? 1;
+        setProgress(Math.round((loaded / total) * 100));
+      });
+
+      await upload.done();
+
+      // alert('Archivo subido con éxito');
+      setShowModal(true);
+    } catch (error) {
+      console.error('Error al subir el archivo:', error);
+      setErrorMessage(true);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // handleCloseModal y handleAcceptModal: Funciones que cierran el modal y resetean el estado del archivo y el progreso, permitiendo al usuario empezar de nuevo.
+  const handleCloseModal = () => {
+    setFile(null);
+    setProgress(0); 
+    setShowModal(false);
+  };
+
+  const handleAcceptModal = () => {
+    setFile(null);
+    setProgress(0); 
+    setShowModal(false);
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <div className="text-white text-center min-h-screen flex flex-col items-center">
+      <div className="pt-10">
+        <div className="flex justify-center mb-2">
+          <Image
+            className="rounded-xl"
+            src="/images/s3.png"
+            width={80}
+            height={80}
+            alt="Amazon S3 logo"
+            quality={100}
+          />
         </div>
-      </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+        <h1 className="text-3xl mb-10">
+          Sube tus archivos a <span className="text-green-400">S3</span>
+        </h1>
+        {errorMessage && (
+          <h1 className="text-3xl -mt-5 mb-10 text-red-600">
+            Ha ocurrido un error en el servidor
+          </h1>
+        )}
+        <input
+          type="file"
+          className="hidden"
+          id="fileInput"
+          onChange={handleFileChange}
+          disabled={uploading}
         />
+        <label htmlFor="fileInput" className={`bg-orange-400 text-xl mt-5 px-8 py-4 rounded-xl duration-200 hover:bg-orange-500 hover:scale-105 ${uploading ? 'cursor-not-allowed' : 'cursor-pointer'} select-none`}>
+          Elige tu archivo
+        </label>
+        {file && (
+          <div className="flex flex-col items-center mt-4">
+            <span className="text-lg">{file.name}</span>
+            {uploading && (
+              <div className="w-full bg-gray-200 rounded-full h-4 mt-2 mb-4">
+                <div
+                  className="bg-green-600 h-4 rounded-full"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            )}
+            <div className="flex mt-2">
+              <button
+                onClick={handleRemoveFile}
+                className={`bg-red-500 text-xl px-4 py-2 rounded-xl duration-200 hover:bg-red-600 hover:scale-105 mr-2 ${uploading ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                disabled={uploading}
+              >
+                Quitar archivo
+              </button>
+              <button
+                onClick={handleUpload}
+                className={`bg-blue-500 text-xl px-4 py-2 rounded-xl duration-200 hover:bg-blue-600 hover:scale-105 ${uploading ? 'animate-pulse' : ''}`}
+                disabled={uploading}
+              >
+                {uploading ? 'Subiendo...' : 'Subir archivo'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+      <div className='mt-auto bg-gray-800 text-white text-center w-full'>
+        <h1> v 0.1 </h1>
       </div>
-    </main>
+      {showModal && (
+        <UploadModal onClose={handleCloseModal} onAccept={handleAcceptModal} />
+      )}
+    </div>
   );
 }
