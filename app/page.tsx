@@ -16,7 +16,7 @@ const s3Client = new S3Client({
 });
 
 export default function Home() {
-// useState: Hooks de React para manejar el estado de la aplicación, como el archivo seleccionado, el progreso de carga, el estado de carga, la visibilidad del modal y los mensajes de error.
+// useState: Estados para manejar el estado de la aplicación, como el archivo seleccionado, el progreso de carga, el estado de carga, la visibilidad del modal y los mensajes de error.
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
