@@ -20,4 +20,6 @@ This repository contains a project that demonstrates how to upload files to AWS 
 2. Install the dependencies using `npm install`.
 3. Set your environment variables to a file `.env.local` with the AWS credentials you will use.
 
-## Created by
+## Made by ✏️
+
+  * [JulianCSN](https://github.com/JulianCSN) 
